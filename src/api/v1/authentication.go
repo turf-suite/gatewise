@@ -1,13 +1,15 @@
 package v1
 
 import (
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
+	"database/sql"
+	"log"
 	"time"
 	"turf-auth/src/api"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	"log"
 )
 
 var signingKey = []byte("MXoSfsFDFnjHdoaSmUbCaIqt5oTDvM-3sE6ckDcKqt-mn0yedPCbslI5xwP5mQJs-jVNVKRUawXTFFDhryW2wiPon6If9UsOm5X3Nggmqw67kjZNI4sL16zOTkmBWKWvuRExU6ZZgG9aIL6TS0oGZf0LiBMuJJA_-gWCbsEYRn5U4nI6eBAzkC24R9n9CzvDvYZnEuAFLzmMdRE7ZvC9jCKz23dQ5oAdLQrbfq3ECwiJzVLXF7tGcuYV49QFrlDi-yeT7W0MY53b09KgimaQNAWbEpnkl4RY43s3MtmAj_vU39PEGZRaXeJHv-_a9iXXdxB01VUw6qVQBcPaS0b5gQ")
@@ -100,13 +102,17 @@ func LoginHandler(ctx *fiber.Ctx) error {
 			"error": "Failed to parse the login credentials body"})
 	}
 	signed, err := login(&loginCredentials); if err != nil {
-		if err == bcrypt.ErrMismatchedHashAndPassword {
-			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "The Password Didn't match"})
-		} else {
-			log.Fatal(err)
-			return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Unknown login error occurred on the server"})
+		switch(err) {
+			case bcrypt.ErrMismatchedHashAndPassword:
+				return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "The Password Didn't match!"})
+			case sql.ErrNoRows:
+				return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "No email found!"})
+			default:
+				log.Fatal(err)
+				return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Unknown login error occurred on the server"})
 		}
 	}
 	cookie := new(fiber.Cookie)
