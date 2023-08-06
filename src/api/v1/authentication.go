@@ -31,7 +31,8 @@ func register(id string, user *User) error {
 		INSERT INTO users (id, firstname, lastname, email, password)
 		VALUES ($1, $2, $3, $4, $5)
 	`
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), 12); if err != nil {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), 12)
+	if err != nil {
 		return err
 	}
 	_, err = api.DB.Exec(
@@ -47,17 +48,20 @@ func register(id string, user *User) error {
 func login(credentials *UserLogin) (string, error) {
 	userData := api.DB.QueryRow("SELECT id, password FROM users WHERE email = $1", credentials.Email)
 	var (
-		id string
+		id       string
 		password string
 	)
-	err := userData.Scan(&id, &password); if err != nil {
+	err := userData.Scan(&id, &password)
+	if err != nil {
 		return "", err
 	}
-	err = bcrypt.CompareHashAndPassword([]byte(password), []byte(credentials.Password)); if err != nil {
+	err = bcrypt.CompareHashAndPassword([]byte(password), []byte(credentials.Password))
+	if err != nil {
 		return "", err
 	}
 	token := generateJWT(id, "Turf-Auth")
-	signed, err := token.SignedString(signingKey); if err != nil {
+	signed, err := token.SignedString(signingKey)
+	if err != nil {
 		return "", err
 	}
 	return signed, nil
@@ -67,16 +71,20 @@ func RegistrationHandler(ctx *fiber.Ctx) error {
 	var data User
 	id := uuid.New().String()
 	token := generateJWT(id, "Turf-Auth")
-	signed, err := token.SignedString(signingKey); if err != nil {
+	signed, err := token.SignedString(signingKey)
+	if err != nil {
 		log.Fatal(err)
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to generate token"})
 	}
-	err = ctx.BodyParser(&data); if err != nil {
+	err = ctx.BodyParser(&data)
+	if err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Failed to parse the user registration info"})
 	}
-	err = register(id, &data); if err != nil {
+	err = register(id, &data)
+	if err != nil {
+		log.Fatal(err)
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to register new user"})
 	}
@@ -92,27 +100,30 @@ func RegistrationHandler(ctx *fiber.Ctx) error {
 }
 
 func LoginHandler(ctx *fiber.Ctx) error {
-	token := ctx.Cookies("turf-suite", ""); if token != "" {
+	token := ctx.Cookies("turf-suite", "")
+	if token != "" {
 		return ctx.Status(fiber.StatusConflict).JSON(fiber.Map{
 			"message": "User already authenticated"})
 	}
 	var loginCredentials UserLogin
-	err := ctx.BodyParser(&loginCredentials); if err != nil {
+	err := ctx.BodyParser(&loginCredentials)
+	if err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Failed to parse the login credentials body"})
 	}
-	signed, err := login(&loginCredentials); if err != nil {
-		switch(err) {
-			case bcrypt.ErrMismatchedHashAndPassword:
-				return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+	signed, err := login(&loginCredentials)
+	if err != nil {
+		switch err {
+		case bcrypt.ErrMismatchedHashAndPassword:
+			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "The Password Didn't match!"})
-			case sql.ErrNoRows:
-				return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-					"error": "No email found!"})
-			default:
-				log.Fatal(err)
-				return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "Unknown login error occurred on the server"})
+		case sql.ErrNoRows:
+			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "No email found!"})
+		default:
+			log.Fatal(err)
+			return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Unknown login error occurred on the server"})
 		}
 	}
 	cookie := new(fiber.Cookie)
@@ -127,16 +138,18 @@ func LoginHandler(ctx *fiber.Ctx) error {
 }
 
 func LogOutHandler(ctx *fiber.Ctx) error {
-	token := ctx.Cookies("turf-suite", ""); if token == "" {
+	token := ctx.Cookies("turf-suite", "")
+	if token == "" {
 		return ctx.Status(fiber.StatusConflict).JSON(fiber.Map{
 			"message": "User is not authenticated, so they cannot log out!"})
 	}
-	ctx.Cookie(&fiber.Cookie{
-		HTTPOnly: true,
-		Name: "turf-suite",
-		Value: "",
-		SameSite: fiber.CookieSameSiteLaxMode,
-		Secure: true,
-		Expires: time.Now().Add(time.Hour * 24)})
+	cookie := new(fiber.Cookie)
+	cookie.Name = "turf-suite"
+	cookie.HTTPOnly = true
+	cookie.Value = ""
+	cookie.SameSite = fiber.CookieSameSiteLaxMode
+	cookie.Expires = time.Now().Add(time.Hour * 24)
+	cookie.Secure = true
+	ctx.Cookie(cookie)
 	return ctx.JSON(fiber.Map{"message": "Log Out Successful"})
 }
