@@ -16,5 +16,6 @@ func main() {
 	user.Post("/register", v1.RegistrationHandler)
 	user.Post("/login", v1.LoginHandler).Use(v1.NewLoginLimiter())
 	user.Post("/logout", v1.LogOutHandler)
+	user.Post("/delete", v1.AccountDeleteHandler)
 	log.Fatal(api.App.Listen(":3000"))
 }

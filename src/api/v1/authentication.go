@@ -12,7 +12,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var signingKey = []byte("MXoSfsFDFnjHdoaSmUbCaIqt5oTDvM-3sE6ckDcKqt-mn0yedPCbslI5xwP5mQJs-jVNVKRUawXTFFDhryW2wiPon6If9UsOm5X3Nggmqw67kjZNI4sL16zOTkmBWKWvuRExU6ZZgG9aIL6TS0oGZf0LiBMuJJA_-gWCbsEYRn5U4nI6eBAzkC24R9n9CzvDvYZnEuAFLzmMdRE7ZvC9jCKz23dQ5oAdLQrbfq3ECwiJzVLXF7tGcuYV49QFrlDi-yeT7W0MY53b09KgimaQNAWbEpnkl4RY43s3MtmAj_vU39PEGZRaXeJHv-_a9iXXdxB01VUw6qVQBcPaS0b5gQ")
+const (
+	authCookieName string        = "turf-auth"
+	useHTTPS       bool          = false
+	tokenExpTime   time.Duration = time.Hour * 24
+)
 
 func generateJWT(id string, issuer string) *jwt.Token {
 	now := time.Now()
@@ -60,7 +64,7 @@ func login(credentials *UserLogin) (string, error) {
 		return "", err
 	}
 	token := generateJWT(id, "Turf-Auth")
-	signed, err := token.SignedString(signingKey)
+	signed, err := token.SignedString(api.Secret.SigningKey)
 	if err != nil {
 		return "", err
 	}
@@ -71,7 +75,7 @@ func RegistrationHandler(ctx *fiber.Ctx) error {
 	var data User
 	id := uuid.New().String()
 	token := generateJWT(id, "Turf-Auth")
-	signed, err := token.SignedString(signingKey)
+	signed, err := token.SignedString(api.Secret.SigningKey)
 	if err != nil {
 		log.Fatal(err)
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -89,18 +93,18 @@ func RegistrationHandler(ctx *fiber.Ctx) error {
 			"error": "Failed to register new user"})
 	}
 	cookie := new(fiber.Cookie)
-	cookie.Name = "turf-suite"
+	cookie.Name = authCookieName
 	cookie.HTTPOnly = true
 	cookie.Value = signed
 	cookie.SameSite = fiber.CookieSameSiteLaxMode
-	cookie.Expires = time.Now().Add(time.Hour * 24)
-	cookie.Secure = true
+	cookie.Expires = time.Now().Add(tokenExpTime)
+	cookie.Secure = useHTTPS
 	ctx.Cookie(cookie)
 	return ctx.JSON(fiber.Map{"message": "Registration Successful!"})
 }
 
 func LoginHandler(ctx *fiber.Ctx) error {
-	token := ctx.Cookies("turf-suite", "")
+	token := ctx.Cookies(authCookieName, "")
 	if token != "" {
 		return ctx.Status(fiber.StatusConflict).JSON(fiber.Map{
 			"message": "User already authenticated"})
@@ -127,12 +131,12 @@ func LoginHandler(ctx *fiber.Ctx) error {
 		}
 	}
 	cookie := new(fiber.Cookie)
-	cookie.Name = "turf-suite"
+	cookie.Name = authCookieName
 	cookie.HTTPOnly = true
 	cookie.Value = signed
 	cookie.SameSite = fiber.CookieSameSiteLaxMode
-	cookie.Expires = time.Now().Add(time.Hour * 24)
-	cookie.Secure = true
+	cookie.Expires = time.Now().Add(tokenExpTime)
+	cookie.Secure = useHTTPS
 	ctx.Cookie(cookie)
 	return ctx.JSON(fiber.Map{"message": "Login Successful!"})
 }
@@ -143,13 +147,35 @@ func LogOutHandler(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusConflict).JSON(fiber.Map{
 			"message": "User is not authenticated, so they cannot log out!"})
 	}
-	cookie := new(fiber.Cookie)
-	cookie.Name = "turf-suite"
-	cookie.HTTPOnly = true
-	cookie.Value = ""
-	cookie.SameSite = fiber.CookieSameSiteLaxMode
-	cookie.Expires = time.Now().Add(time.Hour * 24)
-	cookie.Secure = true
-	ctx.Cookie(cookie)
+	ctx.ClearCookie(authCookieName)
 	return ctx.JSON(fiber.Map{"message": "Log Out Successful"})
+}
+
+func AccountDeleteHandler(ctx *fiber.Ctx) error {
+	var credentials UserLogin
+	err := ctx.BodyParser(&credentials)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Failed to parse the account credentials body"})
+	}
+	row := api.DB.QueryRow("SELECT password FROM users WHERE email = $1", credentials.Email)
+	var hashedPassword string
+	err = row.Scan(&hashedPassword)
+	if err != nil {
+		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "No user found!"})
+	}
+	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(credentials.Password))
+	if err != nil {
+		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "The entered password for the user is incorrect!"})
+	}
+	// TODO: add MFA logic to confirm that the user wants to delete the account before this query
+	_, err = api.DB.Exec("DELETE FROM users WHERE email = $0", credentials.Email)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "An error occured when deleting the user account!"})
+	}
+	ctx.ClearCookie(authCookieName)
+	return ctx.JSON(fiber.Map{"message": "Successfully Deleted Account!"})
 }

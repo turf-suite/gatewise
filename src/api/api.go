@@ -13,20 +13,28 @@ import (
 const vaultUrl string = "https://turf-dev-keyvault.vault.azure.net/"
 
 var (
-	App *fiber.App
-	DB  *sql.DB
+	App    *fiber.App
+	DB     *sql.DB
+	Secret *Secrets
 )
 
 type Secrets struct {
 	DBConnection string
 	GoogleOAuth  string
 	SlackOAuth   string
+	SigningKey   []byte
 }
 
-var secrets *Secrets
+func obtainSecretValue(client *azsecrets.Client, secret string) string {
+	obtained, err := client.GetSecret(context.TODO(), secret, "", nil)
+	if err != nil {
+		log.Fatalf("failed to get the secret: %v", err)
+	}
+	return *obtained.Value
+}
 
 func init() {
-	secrets = &Secrets{}
+	Secret = &Secrets{}
 	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
 		log.Fatalf("failed to obtain a credential: %v", err)
@@ -35,18 +43,11 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	postgresCred, err := client.GetSecret(context.TODO(), "postgres", "", nil)
-	if err != nil {
-		log.Fatalf("failed to get the secret: %v", err)
-	}
-	googleCred, err := client.GetSecret(context.TODO(), "google-oauth", "", nil)
-	if err != nil {
-		log.Fatalf("failed to get the secret: %v", err)
-	}
+	Secret.DBConnection = obtainSecretValue(client, "postgres")
+	Secret.GoogleOAuth = obtainSecretValue(client, "google-oauth")
+	Secret.SigningKey = []byte(obtainSecretValue(client, "signing-key"))
 	App = fiber.New()
-	secrets.DBConnection = *postgresCred.Value
-	secrets.GoogleOAuth = *googleCred.Value
-	DB, err = sql.Open("postgres", secrets.DBConnection)
+	DB, err = sql.Open("postgres", Secret.DBConnection)
 	if err != nil {
 		log.Fatal(err)
 	}
