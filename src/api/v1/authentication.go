@@ -7,75 +7,21 @@ import (
 	"turf-auth/src/api"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 const (
-	authCookieName string        = "turf-auth"
-	useHTTPS       bool          = false
-	tokenExpTime   time.Duration = time.Hour * 24
+	authCookieName string = "turf-auth"
+	useHTTPS       bool   = false
+	tokenExpTime   int    = 14
 )
-
-func generateJWT(id string, issuer string) *jwt.Token {
-	now := time.Now()
-	return jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"iss": issuer,
-		"sub": id,
-		"iat": now.Unix(),
-		"nbf": now.Unix(),
-		"aud": "Turf-Suite",
-		"exp": now.AddDate(0, 0, 7).Unix(),
-		"jti": uuid.New().String()})
-}
-
-func register(id string, user *User) error {
-	userQuery := `
-		INSERT INTO users (id, firstname, lastname, email, password)
-		VALUES ($1, $2, $3, $4, $5)
-	`
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), 12)
-	if err != nil {
-		return err
-	}
-	_, err = api.DB.Exec(
-		userQuery,
-		id,
-		user.Firstname,
-		user.Lastname,
-		user.Email,
-		hashedPassword)
-	return err
-}
-
-func login(credentials *UserLogin) (string, error) {
-	userData := api.DB.QueryRow("SELECT id, password FROM users WHERE email = $1", credentials.Email)
-	var (
-		id       string
-		password string
-	)
-	err := userData.Scan(&id, &password)
-	if err != nil {
-		return "", err
-	}
-	err = bcrypt.CompareHashAndPassword([]byte(password), []byte(credentials.Password))
-	if err != nil {
-		return "", err
-	}
-	token := generateJWT(id, "Turf-Auth")
-	signed, err := token.SignedString(api.Secret.SigningKey)
-	if err != nil {
-		return "", err
-	}
-	return signed, nil
-}
 
 func RegistrationHandler(ctx *fiber.Ctx) error {
 	var data User
 	id := uuid.New().String()
-	token := generateJWT(id, "Turf-Auth")
-	signed, err := token.SignedString(api.Secret.SigningKey)
+	token := generateJWT(id, "Turf-Auth", time.Now().AddDate(0, 0, tokenExpTime))
+	_, err := token.SignedString(api.Secret.SigningKey)
 	if err != nil {
 		log.Fatal(err)
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -86,20 +32,25 @@ func RegistrationHandler(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Failed to parse the user registration info"})
 	}
-	err = register(id, &data)
+	userQuery := `
+		INSERT INTO users (id, firstname, lastname, email, password)
+		VALUES ($1, $2, $3, $4, $5)`
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(data.Password), 12)
 	if err != nil {
 		log.Fatal(err)
+	}
+	_, err = api.DB.Exec(
+		userQuery,
+		id,
+		data.Firstname,
+		data.Lastname,
+		data.Email,
+		hashedPassword)
+	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to register new user"})
 	}
-	cookie := new(fiber.Cookie)
-	cookie.Name = authCookieName
-	cookie.HTTPOnly = true
-	cookie.Value = signed
-	cookie.SameSite = fiber.CookieSameSiteLaxMode
-	cookie.Expires = time.Now().Add(tokenExpTime)
-	cookie.Secure = useHTTPS
-	ctx.Cookie(cookie)
+	ctx.Cookie(createTokenCookie(token))
 	return ctx.JSON(fiber.Map{"message": "Registration Successful!"})
 }
 
@@ -115,12 +66,14 @@ func LoginHandler(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Failed to parse the login credentials body"})
 	}
-	signed, err := login(&loginCredentials)
+	userData := api.DB.QueryRow("SELECT id, password FROM users WHERE email = $1", loginCredentials.Email)
+	var (
+		id       string
+		password string
+	)
+	err = userData.Scan(&id, &password)
 	if err != nil {
 		switch err {
-		case bcrypt.ErrMismatchedHashAndPassword:
-			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "The Password Didn't match!"})
 		case sql.ErrNoRows:
 			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "No email found!"})
@@ -130,24 +83,30 @@ func LoginHandler(ctx *fiber.Ctx) error {
 				"error": "Unknown login error occurred on the server"})
 		}
 	}
-	cookie := new(fiber.Cookie)
-	cookie.Name = authCookieName
-	cookie.HTTPOnly = true
-	cookie.Value = signed
-	cookie.SameSite = fiber.CookieSameSiteLaxMode
-	cookie.Expires = time.Now().Add(tokenExpTime)
-	cookie.Secure = useHTTPS
-	ctx.Cookie(cookie)
+	err = bcrypt.CompareHashAndPassword([]byte(password), []byte(loginCredentials.Password))
+	if err != nil {
+		switch err {
+		case bcrypt.ErrMismatchedHashAndPassword:
+			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "The Password Didn't match!"})
+		default:
+			log.Fatal(err)
+			return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Unknown login error occurred on the server"})
+		}
+	}
+	jwtToken := generateJWT(id, "Turf-Auth", time.Now().AddDate(0, 0, tokenExpTime))
+	ctx.Cookie(createTokenCookie(jwtToken))
 	return ctx.JSON(fiber.Map{"message": "Login Successful!"})
 }
 
 func LogOutHandler(ctx *fiber.Ctx) error {
-	token := ctx.Cookies("turf-suite", "")
+	token := ctx.Cookies(authCookieName, "")
 	if token == "" {
 		return ctx.Status(fiber.StatusConflict).JSON(fiber.Map{
 			"message": "User is not authenticated, so they cannot log out!"})
 	}
-	ctx.ClearCookie(authCookieName)
+	ctx.ClearCookie()
 	return ctx.JSON(fiber.Map{"message": "Log Out Successful"})
 }
 
