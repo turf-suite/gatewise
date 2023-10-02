@@ -7,6 +7,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azsecrets"
 	"github.com/gofiber/fiber/v2"
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 	"log"
 )
 
@@ -15,6 +16,7 @@ const vaultUrl string = "https://turf-dev-keyvault.vault.azure.net/"
 var (
 	App    *fiber.App
 	DB     *sql.DB
+	Redis  *redis.Client
 	Secret *Secrets
 )
 
@@ -43,6 +45,10 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	Redis = redis.NewClient(&redis.Options{
+		Addr:     "40.76.217.42:6379",
+		Password: "",
+		DB:       0})
 	Secret.DBConnection = obtainSecretValue(client, "postgres")
 	Secret.GoogleOAuth = obtainSecretValue(client, "google-oauth")
 	Secret.SigningKey = []byte(obtainSecretValue(client, "signing-key"))

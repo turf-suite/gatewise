@@ -11,3 +11,14 @@ type UserLogin struct {
 	Email    string
 	Password string
 }
+
+type SendVerifyEmailPayload struct {
+	Email string `json:"email"`
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+type EmailSentResponse struct {
+	Status string `json:"status"`
+	Message string `json:"message"`
+}

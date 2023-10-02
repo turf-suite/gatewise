@@ -1,8 +1,12 @@
 package v1
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"context"
+	"log"
 	"turf-auth/src/api"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/redis/go-redis/v9"
 )
 
 func VerifyHandler(ctx *fiber.Ctx) error {
@@ -23,10 +27,14 @@ func VerifyHandler(ctx *fiber.Ctx) error {
 			return ctx.SendStatus(fiber.StatusInternalServerError)
 		}
 	}
-	cachedCode := queryRedis(claims.Subject)
-	if cachedCode == "" {
-		return ctx.Status(fiber.StatusGone).JSON(fiber.Map{
-			"message": "The verification code has expired"})
+	cachedCode, err := api.Redis.HGet(context.Background(), verifyCodeHash, claims.Subject).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return ctx.Status(fiber.StatusGone).JSON(fiber.Map{
+				"message": "The verification code has expired"})
+		} else {
+			log.Fatal(err)
+		}
 	}
 	if cachedCode != code {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
