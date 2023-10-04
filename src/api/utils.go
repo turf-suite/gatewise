@@ -1,7 +1,11 @@
-package v1
+package api
 
 import (
+	"log"
 	"math/rand"
+	"os"
+
+	"github.com/joho/godotenv"
 )
 
 func generateVerificationCode(length int) string {
@@ -11,4 +15,15 @@ func generateVerificationCode(length int) string {
 		verificationCode[i] = digits[rand.Intn(len(digits))]
 	}
 	return string(verificationCode)
+}
+
+func loadEnvVariable(variable string) string {
+	value := os.Getenv(variable)
+	if value == "" {
+		err := godotenv.Load("../../../.env")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	return os.Getenv(variable)
 }

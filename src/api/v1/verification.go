@@ -4,11 +4,13 @@ import (
 	"context"
 	"log"
 	"turf-auth/src/api"
+	"turf-auth/src/security"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/redis/go-redis/v9"
 )
 
+// use this route from a verification email sent because the user has suspicious sign-in activity
 func VerifyHandler(ctx *fiber.Ctx) error {
 	code := ctx.Params("code")
 	token := ctx.Cookies(authCookieName, "")
@@ -18,10 +20,10 @@ func VerifyHandler(ctx *fiber.Ctx) error {
 	if token == "" {
 		return ctx.SendStatus(fiber.StatusUnauthorized)
 	}
-	claims, err := parseTokenClaims(token)
+	claims, err := security.TokenSigner.ParseTokenClaims(token)
 	if err != nil {
 		switch err.(type) {
-		case *UserUnauthorized:
+		case *security.UserUnauthorized:
 			return ctx.SendStatus(fiber.StatusUnauthorized)
 		default:
 			return ctx.SendStatus(fiber.StatusInternalServerError)

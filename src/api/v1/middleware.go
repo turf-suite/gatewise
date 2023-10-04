@@ -1,21 +1,14 @@
 package v1
 
 import (
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/limiter"
-	"github.com/gofiber/fiber/v2/middleware/keyauth"
 	"strconv"
 	"time"
-	"fmt"
 	"turf-auth/src/api"
-)
+	"turf-auth/src/security"
 
-func NewTokenAuthMiddleware() fiber.Handler {
-	return keyauth.New(keyauth.Config{
-		KeyLookup: fmt.Sprintf("cookie:%s", authCookieName),
-		Validator: validateToken,
-	})
-}
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
+)
 
 func NewLoginLimiter() fiber.Handler {
 	return limiter.New(limiter.Config{
@@ -32,7 +25,7 @@ func NewLoginLimiter() fiber.Handler {
 func RegistrationMiddleware(ctx *fiber.Ctx) error {
 	var (
 		data User
-		id int
+		id   int
 	)
 	ctx.BodyParser(&data)
 	userData := api.DB.QueryRow("SELECT id, FROM users WHERE email = $1", data.Email)
@@ -45,16 +38,17 @@ func RegistrationMiddleware(ctx *fiber.Ctx) error {
 		"error": "That Email Has Already Been Registered!"})
 }
 
-func TokenRefreshMiddleware(ctx *fiber.Ctx) error {
-	token := ctx.Cookies(authCookieName, "")
-	jwtToken, err := refreshToken(token)
+func AuthorizationMiddleware(ctx *fiber.Ctx) error {
+	refreshToken := ctx.Cookies("turf-auth")
+	accessToken := ctx.Cookies("turf-access")
+	jwtToken, err := security.TokenSigner.IssueNewAccessToken(refreshToken, accessToken)
 	if err != nil {
 		return ctx.SendStatus(fiber.StatusUnauthorized)
 	}
 	if jwtToken == nil {
 		return ctx.Next()
 	}
-	ctx.ClearCookie(authCookieName)
-	ctx.Cookie(createTokenCookie(jwtToken))
+	ctx.ClearCookie("turf-access")
+	ctx.Cookie(security.TokenSigner.SignAndCreateCookie(jwtToken, "turf-access"))
 	return ctx.Next()
-} 
+}
