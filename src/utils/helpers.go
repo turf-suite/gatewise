@@ -1,4 +1,4 @@
-package api
+package utils
 
 import (
 	"log"
@@ -8,7 +8,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func generateVerificationCode(length int) string {
+func GenerateVerificationCode(length int) string {
 	digits := "0123456789"
 	verificationCode := make([]byte, length)
 	for i := 0; i < length; i++ {
@@ -17,7 +17,7 @@ func generateVerificationCode(length int) string {
 	return string(verificationCode)
 }
 
-func loadEnvVariable(variable string) string {
+func LoadEnvVariable(variable string) string {
 	value := os.Getenv(variable)
 	if value == "" {
 		err := godotenv.Load("../../../.env")

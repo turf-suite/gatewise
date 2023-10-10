@@ -1,6 +1,7 @@
 package security
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"log"
@@ -44,15 +45,18 @@ func generateJWT(id string, issuer string, exp time.Time) *jwt.Token {
 type SigningKeyManager struct {
 	signingKey   []byte
 	nextRotation time.Time
+	secrets      SecretManager
 }
 
 func (secrets *SigningKeyManager) newSigningKey() {
+	ctx := context.Background()
 	randomBytes := make([]byte, signingKeyLength)
 	_, err := rand.Read(randomBytes)
 	if err != nil {
 		log.Fatalf("Failed to generate random byte string for signing key %v", err)
 	}
 	secrets.signingKey = randomBytes
+	secrets.secrets.Set(ctx, "signing-key", randomBytes)
 }
 
 func (signer *SigningKeyManager) IssueRefreshToken(id string) *jwt.Token {
@@ -149,7 +153,7 @@ func (secrets *SigningKeyManager) RotateSigningKeys() {
 }
 
 // add new function which creates instance and loads or generates signing key from key vault and then loads or sets the last key rotation date
-func newSigningKeyManager() {
+func newSigningKeyManager(secrets SecretManager) {
 	// test if there is a key in vault, if not, generate one from scratch and set the next rotation date to now with 30 days added
 	// if there is a key in the vault, the database must have a next rotation time stored so set nextRotation to that stored value
 }

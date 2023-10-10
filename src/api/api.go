@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"log"
+	"turf-auth/src/utils"
 
 	"github.com/gofiber/fiber/v2"
 	_ "github.com/lib/pq"
@@ -22,7 +23,7 @@ func init() {
 	// 	Password: "",
 	// 	DB:       0})
 	App = fiber.New()
-	DB, err = sql.Open("postgres", loadEnvVariable("POSTGRES_CONNECTION"))
+	DB, err = sql.Open("postgres", utils.LoadEnvVariable("POSTGRES_CONNECTION"))
 	if err != nil {
 		log.Fatal(err)
 	}
