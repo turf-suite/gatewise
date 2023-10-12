@@ -3,8 +3,8 @@ package v1
 import (
 	"database/sql"
 	"log"
-	"turf-auth/src/api"
-	"turf-auth/src/security"
+	"turf-gatewise/api"
+	"turf-gatewise/security"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"

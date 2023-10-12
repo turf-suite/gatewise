@@ -1,4 +1,4 @@
-module turf-auth
+module turf-gatewise
 
 go 1.21
 

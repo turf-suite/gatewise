@@ -3,7 +3,7 @@ package api
 import (
 	"database/sql"
 	"log"
-	"turf-auth/src/utils"
+	"turf-gatewise/utils"
 
 	"github.com/gofiber/fiber/v2"
 	_ "github.com/lib/pq"

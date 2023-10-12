@@ -3,8 +3,8 @@ package v1
 import (
 	"strconv"
 	"time"
-	"turf-auth/src/api"
-	"turf-auth/src/security"
+	"turf-gatewise/api"
+	"turf-gatewise/security"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/limiter"

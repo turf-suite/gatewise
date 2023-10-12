@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 	"time"
-	"turf-auth/src/utils"
+	"turf-gatewise/utils"
 
 	"github.com/hashicorp/vault-client-go"
 	"github.com/hashicorp/vault-client-go/schema"

@@ -2,9 +2,9 @@ package main
 
 import (
 	"log"
-	"turf-auth/src/api"
-	v1 "turf-auth/src/api/v1"
-	"turf-auth/src/security"
+	"turf-gatewise/api"
+	v1 "turf-gatewise/api/v1"
+	"turf-gatewise/security"
 )
 
 func main() {

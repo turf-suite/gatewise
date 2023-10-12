@@ -2,7 +2,7 @@ package security
 
 import (
 	"log"
-	"turf-auth/src/utils"
+	"turf-gatewise/utils"
 )
 
 var TokenSigner *SigningKeyManager
