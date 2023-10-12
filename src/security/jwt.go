@@ -140,6 +140,18 @@ func (signer *SigningKeyManager) SignAndCreateCookie(token *jwt.Token, tokenCook
 }
 
 func (secrets *SigningKeyManager) RotateSigningKeys() {
+	ctx := context.Background()
+	secrets.nextRotation = time.Now().Add(time.Hour * 24 * 30)
+	storedKey, err := secrets.secrets.Get(ctx, "signing-key")
+	if err != nil {
+		if key, ok := storedKey.(string); ok {
+			secrets.signingKey = []byte(key)
+		} else {
+			log.Fatal("The singing key was stored as an improper type")
+		}
+	} else {
+		secrets.newSigningKey()
+	}
 	for {
 		if time.Now().Before(secrets.nextRotation) {
 			timeToNextRotation := secrets.nextRotation.Sub(time.Now())
@@ -150,10 +162,4 @@ func (secrets *SigningKeyManager) RotateSigningKeys() {
 			time.Sleep(signingKeyLifetime)
 		}
 	}
-}
-
-// add new function which creates instance and loads or generates signing key from key vault and then loads or sets the last key rotation date
-func newSigningKeyManager(secrets SecretManager) {
-	// test if there is a key in vault, if not, generate one from scratch and set the next rotation date to now with 30 days added
-	// if there is a key in the vault, the database must have a next rotation time stored so set nextRotation to that stored value
 }

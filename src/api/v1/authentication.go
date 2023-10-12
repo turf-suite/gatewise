@@ -127,11 +127,11 @@ func LoginHandler(ctx *fiber.Ctx) error {
 	)
 	err = userData.Scan(&id, &password)
 	if err != nil {
-		handleAuthenticationError(ctx, err)
+		return handleAuthenticationError(ctx, err)
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(password), []byte(loginCredentials.Password))
 	if err != nil {
-		handleAuthenticationError(ctx, err)
+		return handleAuthenticationError(ctx, err)
 	}
 	issueTokens(id, ctx)
 	return ctx.JSON(fiber.Map{"message": "Login Successful!"})

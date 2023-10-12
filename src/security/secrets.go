@@ -40,7 +40,7 @@ func (manager *VaultManager) Get(ctx context.Context, key string) (any, error) {
 }
 
 func NewSecretManager(provider Provider) (SecretManager, error) {
-	ctx := context.Background()
+	// ctx := context.Background()
 
 	switch provider {
 	case HashicorpVault:
@@ -50,16 +50,10 @@ func NewSecretManager(provider Provider) (SecretManager, error) {
 			vault.WithRequestTimeout(30*time.Second),
 		)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Error connecting to Hashicorp Vault: %v", err)
 		}
-		resp, err := client.Auth.UserpassLogin(ctx, utils.LoadEnvVariable("VAULT_USERNAME"), schema.UserpassLoginRequest{
-			Password: utils.LoadEnvVariable("VAULT_PASSWORD")})
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if err := client.SetToken(resp.Auth.ClientToken); err != nil {
-			log.Fatal(err)
+		if err := client.SetToken(utils.LoadEnvVariable("VAULT_ROOT_TOKEN")); err != nil {
+			log.Fatalf("Error authenticating with Hashicorp Vault Client: %v", err)
 		}
 		return &VaultManager{client: client}, nil
 	default:

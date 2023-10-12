@@ -4,11 +4,13 @@ import (
 	"log"
 	"turf-auth/src/api"
 	v1 "turf-auth/src/api/v1"
+	"turf-auth/src/security"
 )
 
 func main() {
 	defer api.DB.Close()
 	Api := api.App.Group("/api")
+
 	// v1 endpoints
 	apiV1 := Api.Group("/v1")
 	user := apiV1.Group("/user")
@@ -19,4 +21,7 @@ func main() {
 	user.Post("/delete", v1.AuthorizationMiddleware, v1.AccountDeleteHandler)
 	user.Post("/verify/:code", v1.AuthorizationMiddleware, v1.VerifyHandler)
 	log.Fatal(api.App.Listen(":3000"))
+
+	// Run the token rotater
+	go security.TokenSigner.RotateSigningKeys()
 }
