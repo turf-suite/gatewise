@@ -4,7 +4,7 @@ go 1.21
 
 toolchain go1.21.1
 
-require github.com/gofiber/fiber/v2 v2.49.2
+require github.com/gofiber/fiber/v2 v2.50.0
 
 require (
 	github.com/hashicorp/vault-client-go v0.4.1
@@ -41,7 +41,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.49.0 // indirect
+	github.com/valyala/fasthttp v1.50.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 )
