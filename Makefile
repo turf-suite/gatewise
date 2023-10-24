@@ -1,4 +1,4 @@
-BINARY_NAME=gateway
+BINARY_NAME=gatewise
 
 build:
 	go build -o ./bin/${BINARY_NAME}

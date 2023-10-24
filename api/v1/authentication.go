@@ -67,7 +67,7 @@ func RegistrationHandler(ctx *fiber.Ctx) error {
 		hashedPassword)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error"})
+			"status": err})
 	}
 	issueTokens(id, ctx)
 	// err = api.Redis.HSet(ctx.Context(), verifyCodeHash, verificationCode).Err()
