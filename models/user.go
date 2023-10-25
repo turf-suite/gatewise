@@ -13,7 +13,7 @@ type User struct {
 }
 
 type UserLoginQuery struct {
-	Id       string
+	Id       []byte
 	Email    string
 	Password string
 }

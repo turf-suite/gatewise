@@ -14,5 +14,5 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	TokenSigner = &SigningKeyManager{secrets: Secrets}
+	TokenSigner = &SigningKeyManager{Secrets: Secrets}
 }

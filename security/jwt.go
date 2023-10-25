@@ -45,7 +45,7 @@ func generateJWT(id string, issuer string, exp time.Time) *jwt.Token {
 type SigningKeyManager struct {
 	signingKey   []byte
 	nextRotation time.Time
-	secrets      SecretManager
+	Secrets      SecretManager
 }
 
 func (secrets *SigningKeyManager) newSigningKey() {
@@ -56,7 +56,7 @@ func (secrets *SigningKeyManager) newSigningKey() {
 		log.Fatalf("Failed to generate random byte string for signing key %v", err)
 	}
 	secrets.signingKey = randomBytes
-	secrets.secrets.Set(ctx, "signing-key", randomBytes)
+	secrets.Secrets.Set(ctx, "signing-key", randomBytes)
 }
 
 func (signer *SigningKeyManager) IssueRefreshToken(id string) *jwt.Token {
@@ -142,7 +142,7 @@ func (signer *SigningKeyManager) SignAndCreateCookie(token *jwt.Token, tokenCook
 func (secrets *SigningKeyManager) RotateSigningKeys() {
 	ctx := context.Background()
 	secrets.nextRotation = time.Now().Add(time.Hour * 24 * 30)
-	storedKey, err := secrets.secrets.Get(ctx, "signing-key")
+	storedKey, err := secrets.Secrets.Get(ctx, "signing-key")
 	if err != nil {
 		if key, ok := storedKey.(string); ok {
 			secrets.signingKey = []byte(key)
